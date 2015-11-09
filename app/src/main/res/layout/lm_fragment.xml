@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:paddingBottom="10dp"
+    android:background="#7bae16">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:background="#666666">
+
+        <GridView
+            android:id="@+id/gridView"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:columnWidth="100dp"
+            android:drawSelectorOnTop="true"
+            android:gravity="center"
+            android:numColumns="auto_fit"
+            android:stretchMode="columnWidth"
+            android:verticalSpacing="5dp"
+            android:focusable="true"
+            android:clickable="true"/>
+
+    </LinearLayout>
+
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/titleView"
+        android:layout_width="wrap_content"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        android:background="#FFFFFF">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp"
+            android:textColor="#fff"
+            android:text=""
+            android:textSize="32sp"
+            android:background="#009688"/>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/title">
+
+            <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:id="@+id/detailsView"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:orientation="vertical"
+                android:background="#FFFFFF">
+
+                <TextView
+                    android:id="@+id/year"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="2dp"
+                    android:textColor="#757575"
+                    android:text=""
+                    android:textSize="28sp"
+                    android:textStyle="bold"/>
+
+                <ImageView
+                    android:id="@+id/lm_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:layout_margin="2dp"
+                    android:layout_below="@id/year"/>
+
+                <TextView
+                    android:id="@+id/label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="2dp"
+                    android:textColor="#757575"
+                    android:text="MARK AS FAVORITE"
+                    android:layout_below="@id/lm_image"/>
+
+                <ToggleButton
+                    android:id="@+id/toggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="2dp"
+                    android:textOn="Yes"
+                    android:textOff="No"
+                    android:onClick="onToggleClicked"
+                    android:layout_below="@id/label"/>
+
+                <TableLayout
+                        android:id="@+id/overviewTable"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:shrinkColumns="*"
+                        android:stretchColumns="*"
+                        android:layout_below="@id/toggle">
+
+
+                        <TableRow>
+                            <TextView
+                                android:id="@+id/overview"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="none"
+                                android:singleLine="false"
+
+                                android:padding="2dp"
+                                android:text="Overview"
+                                android:layout_span="2" />
+                        </TableRow>
+                </TableLayout>
+                <LinearLayout
+                    android:id="@+id/trailers_container"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_below="@id/overviewTable">
+
+                </LinearLayout>
+            </RelativeLayout>
+        </ScrollView>
+    </RelativeLayout>
+
+</RelativeLayout>

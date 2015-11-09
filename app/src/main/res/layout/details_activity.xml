@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/detailsView"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:textColor="#fff"
+        android:text=""
+        android:textSize="32sp"
+        android:background="#009688"/>
+
+    <ScrollView
+        android:id="@+id/main_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/title">
+        <RelativeLayout
+            android:id="@+id/content_layout"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical">
+
+            <RelativeLayout
+                android:id="@+id/content_layout_in"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:layout_margin="10dp"/>
+
+                <TextView
+                    android:id="@+id/year"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:textColor="#757575"
+                    android:text=""
+                    android:textSize="28sp"
+                    android:layout_toEndOf="@id/image"
+                    android:layout_toRightOf="@id/image"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="10dp"
+                    android:textColor="#757575"
+                    android:text="MARK AS FAVORITE"
+                    android:layout_below="@id/year"
+                    android:layout_toEndOf="@id/image"
+                    android:layout_toRightOf="@id/image"/>
+
+                <ToggleButton
+                    android:id="@+id/toggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="10dp"
+                    android:textOn="Yes"
+                    android:textOff="No"
+                    android:onClick="onToggleClicked"
+                    android:layout_below="@id/label"
+                    android:layout_toEndOf="@id/image"
+                    android:layout_toRightOf="@id/image"
+                    />
+            </RelativeLayout>
+
+
+            <TableLayout
+                android:id="@+id/overviewTable"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:shrinkColumns="*"
+                android:stretchColumns="*"
+                android:layout_below="@id/content_layout_in">
+
+
+                <TableRow>
+                    <TextView
+                        android:id="@+id/overview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="none"
+                        android:singleLine="false"
+
+                        android:padding="10dp"
+                        android:text="Overview"
+                        android:layout_span="2" />
+                </TableRow>
+            </TableLayout>
+
+            <View
+                android:id="@+id/trailer_divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_below="@id/overviewTable" />
+
+            <ListView
+                android:id="@+id/trailer_listview"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:layout_below="@id/trailer_divider"/>
+
+        </RelativeLayout>
+    </ScrollView>
+
+
+
+</RelativeLayout>
