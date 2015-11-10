@@ -112,6 +112,31 @@
                 android:layout_width="wrap_content"
                 android:layout_height="fill_parent"
                 android:layout_below="@id/trailer_divider"/>
+            <View
+                android:id="@+id/trailer_divider_details_2"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_below="@id/trailer_listview" />
+
+            <TextView
+                android:id="@+id/reviews_details_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+
+                android:padding="2dp"
+                android:text="Reviews:"
+                android:layout_span="2"
+                android:layout_below="@id/trailer_divider_details_2"/>
+
+            <LinearLayout
+                android:id="@+id/reviews_details_container"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_below="@id/reviews_details_label">
+            </LinearLayout>
 
         </RelativeLayout>
     </ScrollView>

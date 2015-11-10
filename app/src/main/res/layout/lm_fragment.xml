@@ -47,6 +47,7 @@
             android:background="#009688"/>
 
         <ScrollView
+            android:id="@+id/details_scroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/title">
@@ -103,27 +104,82 @@
                         android:stretchColumns="*"
                         android:layout_below="@id/toggle">
 
+                    <TableRow>
+                        <TextView
+                        android:id="@+id/overview_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textStyle="bold"
 
-                        <TableRow>
-                            <TextView
-                                android:id="@+id/overview"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:ellipsize="none"
-                                android:singleLine="false"
+                        android:padding="2dp"
+                        android:text="Overview:"
+                        android:layout_span="2" />
+                    </TableRow>
+                    <TableRow>
+                        <TextView
+                            android:id="@+id/overview"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="none"
+                            android:singleLine="false"
 
-                                android:padding="2dp"
-                                android:text="Overview"
-                                android:layout_span="2" />
-                        </TableRow>
+                            android:padding="2dp"
+                            android:text="Overview"
+                            android:layout_span="2" />
+                    </TableRow>
                 </TableLayout>
+
+                <View
+                    android:id="@+id/trailer_divider_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray"
+                    android:layout_below="@id/overviewTable" />
+
+                <TextView
+                    android:id="@+id/trailers_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+
+                    android:padding="2dp"
+                    android:text="Trailers:"
+                    android:layout_span="2"
+                    android:layout_below="@id/trailer_divider_1"/>
+
                 <LinearLayout
                     android:id="@+id/trailers_container"
                     android:layout_width="fill_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_below="@id/overviewTable">
+                    android:layout_below="@id/trailers_label">
 
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/trailer_divider_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray"
+                    android:layout_below="@id/trailers_container" />
+
+                <TextView
+                    android:id="@+id/reviews_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+
+                    android:padding="2dp"
+                    android:text="Reviews:"
+                    android:layout_span="2"
+                    android:layout_below="@id/trailer_divider_2"/>
+
+                <LinearLayout
+                    android:id="@+id/reviews_container"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_below="@id/reviews_label">
                 </LinearLayout>
             </RelativeLayout>
         </ScrollView>

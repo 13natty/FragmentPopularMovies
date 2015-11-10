@@ -2,6 +2,7 @@ package com.nattysoft.fragmentpopularmovies;
 
 import android.annotation.TargetApi;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -14,11 +15,13 @@ import android.os.Bundle;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -47,8 +50,11 @@ public class DetailsActivity extends AppCompatActivity {
     private String movie_id;
     private MovieItem item;
     private String trailersURL = null;
+    private String reviewsURL = null;
     private ArrayList<TrailerObject> trailerList;
+    private ArrayList<String> reviewList;
     private ListView trailerListview;
+    private LinearLayout reviewListItemView;
     private TrailerViewAdapter trailerAdapter;
 
     @Override
@@ -65,6 +71,8 @@ public class DetailsActivity extends AppCompatActivity {
         year.setText(yearText);
 
         trailerList = new ArrayList<TrailerObject>();
+
+        reviewListItemView = (LinearLayout) findViewById(R.id.reviews_details_container);
 
         Bundle b = getIntent().getExtras();
         item = b.getParcelable("movie_item");
@@ -96,6 +104,9 @@ public class DetailsActivity extends AppCompatActivity {
         try {
             trailersURL = "http://api.themoviedb.org/3/movie/" + movie_id + "/videos?api_key=" + MainActivity.KEY;
             new GetTrailers().execute();
+
+            reviewsURL = "http://api.themoviedb.org/3/movie/" + movie_id + "/reviews?api_key=" + MainActivity.KEY;
+            new GetReviews().execute();
         }catch (Exception e){
             Log.d("Exception ","Exception >>>>>>>>>>>>>>>>>>>>.. "+e.getMessage());
         }
@@ -162,7 +173,7 @@ public class DetailsActivity extends AppCompatActivity {
             }
         };
 
-        Picasso.with(this).load(url).into(loadTarget);
+        Picasso.with(this).load(url).placeholder(R.drawable.android_loading).error(R.drawable.no_image).into(loadTarget);
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
@@ -174,6 +185,7 @@ public class DetailsActivity extends AppCompatActivity {
     public void onToggleClicked(View view) {
         // Is the toggle on?
         item.setFavorite(((ToggleButton) view).isChecked());
+        Preferences.savePreference(this.getApplicationContext(), movie_id, "" + ((ToggleButton) view).isChecked());
     }
 
     /**
@@ -315,4 +327,91 @@ public class DetailsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Async task class to get json by making HTTP call
+     */
+    private class GetReviews extends AsyncTask<Void, Void, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            // Showing progress dialog
+            if (pDialog != null) {
+                pDialog.setMessage("Please wait getting retReviews...");
+                if(!pDialog.isShowing())
+                    pDialog.show();
+            }
+        }
+
+        @Override
+        protected String doInBackground(Void... arg0) {
+            // Creating service handler class instance
+            ServiceHandler sh = new ServiceHandler();
+
+            // Making a request to url and getting response
+            String jsonStr = sh.makeServiceCall(reviewsURL);
+
+            Log.d("Response: ", " reviews >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + jsonStr);
+
+            if (pDialog != null) {
+                pDialog.dismiss();
+            }
+
+            return jsonStr;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.d(TAG, "onPostExecute >>> " );
+            super.onPostExecute(result);
+            // Dismiss the progress dialog
+            if (pDialog != null) {
+                pDialog.dismiss();
+            }
+            /**
+             * Updating parsed JSON data into ListView
+             * */
+
+            if (result != null) {
+                try {
+                    JSONObject jsonObj = new JSONObject(result);
+
+                    Log.d(TAG, "jsonObj reviews--------------------- >"+jsonObj);
+
+                    // Getting JSON Array node
+                    JSONArray reviews = jsonObj.getJSONArray(TAG_RESULTS);
+                    if(reviewList!=null)
+                        reviewList.clear();
+                    reviewList = new ArrayList<String>();
+                    if(reviewListItemView!=null)
+                        reviewListItemView.removeAllViews();
+                    for (int i = 0; i < reviews.length(); i++) {
+                        JSONObject c = reviews.getJSONObject(i);
+
+                        String content = c.getString("content");
+                        String reviewID = c.getString("id");
+                        String author = c.getString("author");
+                        String url = c.getString("url");
+
+                        LayoutInflater mInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+                        View inflatedView = mInflater.inflate(R.layout.review_item_layout, null);
+                        TextView label = (TextView) inflatedView.findViewById(R.id.author);
+                        label.setText(author+":");
+
+                        TextView reviewContent = (TextView) inflatedView.findViewById(R.id.review);
+                        reviewContent.setText(content);
+
+                        if(reviewListItemView != null)
+                            reviewListItemView.addView(inflatedView);
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.e("ServiceHandler", "Couldn't get any data from the url");
+            }
+        }
+    }
 }

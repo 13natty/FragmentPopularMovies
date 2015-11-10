@@ -51,9 +51,9 @@ public class GridViewAdapter extends ArrayAdapter<MovieItem> {
         MovieItem item = data.get(position);
         holder.imageTitle.setText(item.getTitle());
         if(this.context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-            Picasso.with(this.context).load("http://image.tmdb.org/t/p/w185/" + item.getImageURL()).into(holder.image);
+            Picasso.with(this.context).load("http://image.tmdb.org/t/p/w185/" + item.getImageURL()).placeholder(R.drawable.android_loading).error(R.drawable.no_image).into(holder.image);
         }else {
-            Picasso.with(this.context).load("http://image.tmdb.org/t/p/w500/" + item.getImageURL()).into(holder.image);
+            Picasso.with(this.context).load("http://image.tmdb.org/t/p/w500/" + item.getImageURL()).placeholder(R.drawable.android_loading).error(R.drawable.no_image).into(holder.image);
         }
         return row;
     }

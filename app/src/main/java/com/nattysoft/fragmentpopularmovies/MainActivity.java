@@ -18,7 +18,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.content.res.Configuration;
 import android.preference.PreferenceManager;
-import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -29,6 +28,7 @@ import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -67,8 +67,10 @@ public class MainActivity extends ActionBarActivity {
 
     // movies JSONArray
     JSONArray movies = null;
+    JSONArray favorite_movies = null;
 
     ArrayList<MovieItem> moviesList;
+    ArrayList<MovieItem> all_moviesList;
     private GridView gridView;
     private GridViewAdapter gridAdapter;
 
@@ -91,14 +93,20 @@ public class MainActivity extends ActionBarActivity {
 
     // URL to get themoviedb JSON
     private static String url;
+    private static boolean favorite = false;
     private static int sort = 0;
 
     private static final String TAG = MainActivity.class.getName();
     private Configuration config;
     private Target loadTarget;
     private ArrayList<TrailerObject> trailerList;
+    private ArrayList<String> reviewList;
     private String trailersURL = null;
-    private LinearLayout seriesMainListItemView;
+    private String reviewsURL = null;
+    private LinearLayout trailerListItemView;
+    private LinearLayout reviewListItemView;
+    private ScrollView scroll;
+    private String favMoviesArray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,6 +124,9 @@ public class MainActivity extends ActionBarActivity {
             case 1:
                 url = "http://api.themoviedb.org/3/discover/movie?sort_by=vote_average.desc&api_key="+ KEY;
                 break;
+            case 2:
+                favorite = true;
+                favMoviesArray = "[";
             default:
                 url = "http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key="+ KEY;
         }
@@ -126,12 +137,16 @@ public class MainActivity extends ActionBarActivity {
 
         Log.d(TAG, "inflated >>> ");
         moviesList = new ArrayList<MovieItem>();
+        all_moviesList = new ArrayList<MovieItem>();
 
         if(savedInstanceState == null || !savedInstanceState.containsKey(MOVIE_KEY)) {
 
             if(isNetworkAvailable()) {
                 // Calling async task to get json
-                new GetMovies().execute();
+                if(favorite)
+                    new GetMoviesPopular().execute();
+                else
+                    new GetMovies().execute();
             }else{
 
                 new AlertDialog.Builder(this)
@@ -184,7 +199,7 @@ public class MainActivity extends ActionBarActivity {
         switch (item.getItemId()) {
             case R.id.action_sort:
                 final CharSequence[] items = {
-                        "Sort order by Most Popular", "Sort order by Highest-Rated"
+                        "Sort order by Most Popular", "Sort order by Highest-Rated", "Sort order by Favorite"
                 };
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -196,6 +211,9 @@ public class MainActivity extends ActionBarActivity {
                                 if(sort!=0) {
                                     url = "http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key="+ KEY;
                                     sort = 0;
+                                    favorite = false;
+                                    favMoviesArray = "[";
+
                                     moviesList = new ArrayList<MovieItem>();
                                     new GetMovies().execute();
                                 }else{
@@ -215,12 +233,34 @@ public class MainActivity extends ActionBarActivity {
                                 if(sort!=1) {
                                     url = "http://api.themoviedb.org/3/discover/movie?sort_by=vote_average.desc&api_key="+ KEY;
                                     sort = 1;
+                                    favorite = false;
+                                    favMoviesArray = "[";
                                     moviesList = new ArrayList<MovieItem>();
                                     new GetMovies().execute();
                                 }else{
                                     new AlertDialog.Builder(MainActivity.this)
                                             .setTitle("Highest-Rated sorted")
                                             .setMessage("Your movies are already sorted according to highest-rated")
+                                            .setCancelable(false)
+                                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface dialog, int which) {
+                                                    dialog.dismiss();
+                                                }
+                                            }).create().show();
+                                }
+                                break;
+                            case 2:
+                                if(sort!=2) {
+                                    sort = 2;
+                                    moviesList = new ArrayList<MovieItem>();
+                                    favorite = true;
+                                    favMoviesArray = "[";
+                                    new GetMoviesPopular().execute();
+                                }else{
+                                    new AlertDialog.Builder(MainActivity.this)
+                                            .setTitle("Highest-Rated favorite")
+                                            .setMessage("Your movies are already sorted according to favorite")
                                             .setCancelable(false)
                                             .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                                                 @Override
@@ -328,7 +368,7 @@ public class MainActivity extends ActionBarActivity {
                         vote_average = c.getString(TAG_VOTE_AVERAGE);
                         vote_count = c.getString(TAG_VOTE_COUNT);
 
-                        MovieItem movie = new MovieItem(poster_path, title, mov_id);
+                        MovieItem movie = new MovieItem(getApplicationContext(), poster_path, title, mov_id, adult, backdrop_path, genre_ids, original_language, original_title, overview, release_date, popularity, poster_path, title, mov_id);
 
 
                         // adding a movie to movie list
@@ -341,9 +381,246 @@ public class MainActivity extends ActionBarActivity {
                 Log.e("ServiceHandler", "Couldn't get any data from the url");
             }
 
+            scroll = (ScrollView)findViewById(R.id.details_scroll);
             displayGrid();
             trailersURL = "http://api.themoviedb.org/3/movie/" + moviesList.get(0).getID() + "/videos?api_key=" + MainActivity.KEY;
             new GetTrailers().execute();
+
+            reviewsURL = "http://api.themoviedb.org/3/movie/" + moviesList.get(0).getID() + "/reviews?api_key=" + MainActivity.KEY;
+            new GetReviews().execute();
+        }
+    }
+
+    /**
+     * Async task class to get json by making HTTP call
+     */
+    private class GetMoviesPopular extends AsyncTask<Void, Void, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            all_moviesList = new ArrayList<MovieItem>();
+            // Showing progress dialog
+            pDialog = new ProgressDialog(MainActivity.this);
+            pDialog.setMessage("Please wait...");
+            pDialog.setCancelable(true);
+            if(!pDialog.isShowing())
+                pDialog.show();
+
+        }
+
+        @Override
+        protected String doInBackground(Void... arg0) {
+            // Creating service handler class instance
+            ServiceHandler sh = new ServiceHandler();
+
+            // Making a request to url and getting response
+            String jsonStr = sh.makeServiceCall("http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key="+ KEY);
+
+            Log.d("Response: ", ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + jsonStr);
+
+
+            return jsonStr;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.d(TAG, "onPostExecute >>> " );
+            super.onPostExecute(result);
+            // Dismiss the progress dialog
+            if (pDialog.isShowing())
+                pDialog.dismiss();
+            /**
+             * Updating parsed JSON data into ListView
+             * */
+
+            if (result != null) {
+                try {
+                    JSONObject jsonObj = new JSONObject(result);
+
+                    // Getting JSON Array node
+                    movies = jsonObj.getJSONArray(TAG_RESULTS);
+
+                    favorite_movies = new JSONArray();
+                    // looping through All Popular Movies
+                    for (int i = 0; i < movies.length(); i++) {
+                        JSONObject c = movies.getJSONObject(i);
+
+                        poster_path = c.getString(TAG_POSTER_PATH);
+                        title = c.getString(TAG_TITLE);
+                        adult = c.getString(TAG_ADULT);
+                        backdrop_path = c.getString(TAG_BACKDROP_PATH);
+                        genre_ids = c.getString(TAG_GENRE_IDS);
+                        mov_id = c.getString(TAG_ID);
+                        original_language = c.getString(TAG_ORIGINAL_LANGUAGE);
+                        original_title = c.getString(TAG_ORIGINAL_TITLE);
+                        overview = c.getString(TAG_OVERVIEW);
+                        if(overview == "null")
+                            overview = "No overview specified";
+
+                        release_date = c.getString(TAG_RELEASE_DATE);
+                        if(release_date == "null")
+                            release_date = "Year not specified";
+
+                        popularity = c.getString(TAG_POPULARITY);
+                        video = c.getString(TAG_VIDEO);
+                        vote_average = c.getString(TAG_VOTE_AVERAGE);
+                        vote_count = c.getString(TAG_VOTE_COUNT);
+
+                        MovieItem movie = new MovieItem(MainActivity.this.getApplicationContext(), poster_path, title, mov_id, adult, backdrop_path, genre_ids, original_language, original_title, overview, release_date, popularity, poster_path, title, mov_id);
+
+                        String isFavorite = Preferences.getPreference(MainActivity.this.getApplicationContext(), mov_id);
+                        Log.d(TAG, "isFavorite XXXXXXXXXXXXXXXX "+isFavorite);
+                        if(isFavorite != null && isFavorite.equalsIgnoreCase("true")){
+                            moviesList.add(movie);
+                            favMoviesArray +=
+                                    "{\""+TAG_POSTER_PATH+"\":\""+movie.poster_path+"\","+
+                                            "\""+TAG_TITLE+"\":\""+movie.title+"\","+
+                                            "\""+TAG_ADULT+"\":\""+movie.adult+"\","+
+                                            "\""+TAG_BACKDROP_PATH+"\":\""+movie.backdrop_path+"\","+
+                                            "\""+TAG_GENRE_IDS+"\":\""+movie.genre_ids+"\","+
+                                            "\""+TAG_ID+"\":\""+movie.mov_id+"\","+
+                                            "\""+TAG_ORIGINAL_LANGUAGE+"\":\""+movie.original_language+"\","+
+                                            "\""+TAG_ORIGINAL_TITLE+"\":\""+movie.original_title+"\","+
+                                            "\""+TAG_OVERVIEW+"\":\""+movie.overview+"\","+
+                                            "\""+TAG_RELEASE_DATE+"\":\""+movie.release_date+"\","+
+                                            "\""+TAG_POPULARITY+"\":\""+movie.popularity+"\","+
+                                            "\""+TAG_VIDEO+"\":\""+movie.video+"\","+
+                                            "\""+TAG_VOTE_AVERAGE+"\":\""+movie.vote_average+"\","+
+                                            "\""+TAG_VOTE_COUNT+"\":\""+movie.vote_count+"\"},";
+                        }
+                        // adding a movie to movie list
+                        all_moviesList.add(movie);
+                    }
+                    new GetMoviesRated().execute();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.e("ServiceHandler", "Couldn't get any data from the url");
+            }
+        }
+    }
+
+    /**
+     * Async task class to get json by making HTTP call
+     */
+    private class GetMoviesRated extends AsyncTask<Void, Void, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            // Showing progress dialog
+            pDialog = new ProgressDialog(MainActivity.this);
+            pDialog.setMessage("Please wait...");
+            pDialog.setCancelable(true);
+            if(!pDialog.isShowing())
+                pDialog.show();
+
+        }
+
+        @Override
+        protected String doInBackground(Void... arg0) {
+            // Creating service handler class instance
+            ServiceHandler sh = new ServiceHandler();
+
+            // Making a request to url and getting response
+            String jsonStr = sh.makeServiceCall("http://api.themoviedb.org/3/discover/movie?sort_by=vote_average.desc&api_key="+ KEY);
+
+            Log.d("Response: ", ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + jsonStr);
+
+
+            return jsonStr;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.d(TAG, "onPostExecute >>> " );
+            super.onPostExecute(result);
+            // Dismiss the progress dialog
+            if (pDialog.isShowing())
+                pDialog.dismiss();
+            /**
+             * Updating parsed JSON data into ListView
+             * */
+
+            if (result != null) {
+                try {
+                    JSONObject jsonObj = new JSONObject(result);
+
+                    // Getting JSON Array node
+                    Log.d(TAG, "movies ************************** "+movies);
+
+                    movies = jsonObj.getJSONArray(TAG_RESULTS);
+                    // looping through All Rated Movies
+                    for (int i = 0; i < movies.length(); i++) {
+                        JSONObject c = movies.getJSONObject(i);
+
+                        poster_path = c.getString(TAG_POSTER_PATH);
+                        title = c.getString(TAG_TITLE);
+                        adult = c.getString(TAG_ADULT);
+                        backdrop_path = c.getString(TAG_BACKDROP_PATH);
+                        genre_ids = c.getString(TAG_GENRE_IDS);
+                        mov_id = c.getString(TAG_ID);
+                        original_language = c.getString(TAG_ORIGINAL_LANGUAGE);
+                        original_title = c.getString(TAG_ORIGINAL_TITLE);
+                        overview = c.getString(TAG_OVERVIEW);
+                        if(overview == "null")
+                            overview = "No overview specified";
+
+                        release_date = c.getString(TAG_RELEASE_DATE);
+                        if(release_date == "null")
+                            release_date = "Year not specified";
+
+                        popularity = c.getString(TAG_POPULARITY);
+                        video = c.getString(TAG_VIDEO);
+                        vote_average = c.getString(TAG_VOTE_AVERAGE);
+                        vote_count = c.getString(TAG_VOTE_COUNT);
+
+                        MovieItem movie = new MovieItem(MainActivity.this.getApplicationContext(), poster_path, title, mov_id, adult, backdrop_path, genre_ids, original_language, original_title, overview, release_date, popularity, poster_path, title, mov_id);
+
+                        String isFavorite = Preferences.getPreference(MainActivity.this.getApplicationContext(), mov_id);
+                        Log.d(TAG, "isFavorite XXXXXXXXXXXXXXXX "+isFavorite);
+                        if(isFavorite != null && isFavorite.equalsIgnoreCase("true")){
+
+                            moviesList.add(movie);
+                            favMoviesArray +=
+                                "{\""+TAG_POSTER_PATH+"\":\""+movie.poster_path+"\","+
+                                "\""+TAG_TITLE+"\":\""+movie.title+"\","+
+                                "\""+TAG_ADULT+"\":\""+movie.adult+"\","+
+                                "\""+TAG_BACKDROP_PATH+"\":\""+movie.backdrop_path+"\","+
+                                "\""+TAG_GENRE_IDS+"\":\""+movie.genre_ids+"\","+
+                                "\""+TAG_ID+"\":\""+movie.mov_id+"\","+
+                                "\""+TAG_ORIGINAL_LANGUAGE+"\":\""+movie.original_language+"\","+
+                                "\""+TAG_ORIGINAL_TITLE+"\":\""+movie.original_title+"\","+
+                                "\""+TAG_OVERVIEW+"\":\""+movie.overview+"\","+
+                                "\""+TAG_RELEASE_DATE+"\":\""+movie.release_date+"\","+
+                                "\""+TAG_POPULARITY+"\":\""+movie.popularity+"\","+
+                                "\""+TAG_VIDEO+"\":\""+movie.video+"\","+
+                                "\""+TAG_VOTE_AVERAGE+"\":\""+movie.vote_average+"\","+
+                                "\""+TAG_VOTE_COUNT+"\":\""+movie.vote_count+"\"},";
+                        }
+                        // adding a movie to movie list
+                        all_moviesList.add(movie);
+                    }
+                    favMoviesArray = favMoviesArray.substring(0,favMoviesArray.length()-1)+"]";
+                    movies = new JSONArray(favMoviesArray);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.e("ServiceHandler", "Couldn't get any data from the url");
+            }
+
+            scroll = (ScrollView)findViewById(R.id.details_scroll);
+            displayGrid();
+            if(!moviesList.isEmpty()) {
+                trailersURL = "http://api.themoviedb.org/3/movie/" + moviesList.get(0).getID() + "/videos?api_key=" + MainActivity.KEY;
+                new GetTrailers().execute();
+
+                reviewsURL = "http://api.themoviedb.org/3/movie/" + moviesList.get(0).getID() + "/reviews?api_key=" + MainActivity.KEY;
+                new GetReviews().execute();
+            }
         }
     }
 
@@ -386,51 +663,54 @@ public class MainActivity extends ActionBarActivity {
                 e.printStackTrace();
             }
 
-            MovieItem item = (MovieItem) gridAdapter.getItem(0);//temAtPosition(0);
+            if(!gridAdapter.isEmpty()) {
+                MovieItem item = (MovieItem) gridAdapter.getItem(0);//temAtPosition(0);
 
 
+                TextView title = (TextView) findViewById(R.id.title);
+                title.setText(item.getTitle());
 
-            TextView title = (TextView) findViewById(R.id.title);
-            title.setText(item.getTitle());
+                TextView year = (TextView) findViewById(R.id.year);
+                if (release_date == "null")
+                    year.setText("Year not specified");
+                else
+                    year.setText(release_date.substring(0, 4));
 
-            TextView year = (TextView) findViewById(R.id.year);
-            if(release_date == "null")
-                year.setText("Year not specified");
-            else
-                year.setText(release_date.substring(0, 4));
+                trailerList = new ArrayList<TrailerObject>();
+                reviewList = new ArrayList<String>();
 
-            trailerList = new ArrayList<TrailerObject>();
+                ToggleButton toggle = (ToggleButton) findViewById(R.id.toggle);
+                toggle.setChecked(item.getFavorite());
 
-            ToggleButton toggle = (ToggleButton) findViewById(R.id.toggle);
-            toggle.setChecked(item.getFavorite());
+                String movie_id = mov_id;
 
-            String movie_id = mov_id;
+                TextView overviewTextView = (TextView) findViewById(R.id.overview);
+                if (overview == "null")
+                    overviewTextView.setText("No overiew specified");
+                else
+                    overviewTextView.setText(overview);
 
-            TextView overviewTextView = (TextView) findViewById(R.id.overview);
-            if(overview == "null")
-                overviewTextView.setText("No overiew specified");
-            else
-                overviewTextView.setText(overview);
+                trailerListItemView = (LinearLayout) findViewById(R.id.trailers_container);
+                reviewListItemView = (LinearLayout) findViewById(R.id.reviews_container);
 
-            seriesMainListItemView = (LinearLayout) findViewById(R.id.trailers_container);
+                try {
+                    ArrayList<Object> passing = new ArrayList<Object>();
+                    passing.add("http://api.themoviedb.org/3/movie/" + movie_id + "/videos?api_key=" + MainActivity.KEY);
+                    passing.add("Loading trailers ...");
+                    //passing.add(DetailsActivity.this);
+                    AsyncTask task = new httpGet().execute(passing);
 
-            try {
-                ArrayList<Object> passing = new ArrayList<Object>();
-                passing.add("http://api.themoviedb.org/3/movie/"+movie_id+"/videos?api_key="+MainActivity.KEY);
-                passing.add("Loading trailers ...");
-                //passing.add(DetailsActivity.this);
-                AsyncTask task = new httpGet().execute(passing);
+                    Object taskResults = task.get();
+                    Log.d("taskResults ", "taskResults >>>>>>>>>>>>>>>>>>>>.. " + taskResults);
+                } catch (Exception e) {
+                    Log.d("Exception ", "Exception >>>>>>>>>>>>>>>>>>>>.. " + e.getMessage());
+                }
 
-                Object taskResults = task.get();
-                Log.d("taskResults ","taskResults >>>>>>>>>>>>>>>>>>>>.. "+taskResults);
-            }catch (Exception e){
-                Log.d("Exception ","Exception >>>>>>>>>>>>>>>>>>>>.. "+e.getMessage());
-            }
-
-            if(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-                loadBitmap("http://image.tmdb.org/t/p/w500/" + backdrop_path);
-            }else {
-                loadBitmap("http://image.tmdb.org/t/p/w780/" + backdrop_path);
+                if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
+                    loadBitmap("http://image.tmdb.org/t/p/w500/" + backdrop_path);
+                } else {
+                    loadBitmap("http://image.tmdb.org/t/p/w780/" + backdrop_path);
+                }
             }
         }
 
@@ -517,6 +797,9 @@ public class MainActivity extends ActionBarActivity {
                     try {
                         trailersURL = "http://api.themoviedb.org/3/movie/" + movie_id + "/videos?api_key=" + MainActivity.KEY;
                         new GetTrailers().execute();
+
+                        reviewsURL = "http://api.themoviedb.org/3/movie/" + movie_id + "/reviews?api_key=" + MainActivity.KEY;
+                        new GetReviews().execute();
                     }catch (Exception e){
                         Log.d("Exception ","Exception >>>>>>>>>>>>>>>>>>>>.. "+e.getMessage());
                     }
@@ -583,7 +866,7 @@ public class MainActivity extends ActionBarActivity {
             }
         };
 
-        Picasso.with(this).load(url).into(loadTarget);
+        Picasso.with(this).load(url).placeholder(R.drawable.android_loading).error(R.drawable.no_image).into(loadTarget);
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
@@ -595,33 +878,7 @@ public class MainActivity extends ActionBarActivity {
     public void onToggleClicked(View view) {
         // Is the toggle on?
         ((MovieItem) gridAdapter.getItem(clickedItemPos)).setFavorite(((ToggleButton) view).isChecked());
-    }
-
-    public class TrailerObject {
-        String site = null;
-        String trailerID = null;
-        String iso_639_1 = null;
-        String trailerType = null;
-        String trailerKey = null;
-        String trailerSize = null;
-        String trailerName = null;
-
-        public TrailerObject(String site, String trailerID, String iso_639_1, String trailerType, String trailerKey, String trailerSize, String trailerName){
-            this.site = site;
-
-            this.trailerID = trailerID;
-
-            this.iso_639_1 = iso_639_1;
-
-            this.trailerType = trailerType;
-
-            this.trailerKey = trailerKey;
-
-            this.trailerSize = trailerSize;
-
-            this.trailerName = trailerName;
-
-        }
+        Preferences.savePreference(this.getApplicationContext(), ((MovieItem) gridAdapter.getItem(clickedItemPos)).getID(),""+((ToggleButton) view).isChecked());
     }
 
     /**
@@ -659,6 +916,10 @@ public class MainActivity extends ActionBarActivity {
 
         @Override
         protected void onPostExecute(String result) {
+            //scroll right side view up
+            if(scroll!=null)
+                scroll.scrollTo(0, 0);
+
             Log.d(TAG, "onPostExecute >>> " );
             super.onPostExecute(result);
             // Dismiss the progress dialog
@@ -669,7 +930,7 @@ public class MainActivity extends ActionBarActivity {
              * Updating parsed JSON data into ListView
              * */
 
-            if (result != null && seriesMainListItemView != null) {
+            if (result != null && trailerListItemView != null) {
                 try {
                     JSONObject jsonObj = new JSONObject(result);
 
@@ -679,7 +940,7 @@ public class MainActivity extends ActionBarActivity {
                     JSONArray trailers = jsonObj.getJSONArray(TAG_RESULTS);
                     trailerList.clear();
                     trailerList = new ArrayList<TrailerObject>();
-                    seriesMainListItemView.removeAllViews();
+                    trailerListItemView.removeAllViews();
                     for (int i = 0; i < trailers.length(); i++) {
                         JSONObject c = trailers.getJSONObject(i);
 
@@ -702,17 +963,105 @@ public class MainActivity extends ActionBarActivity {
 
                             public void onClick(View v)
                             {
-                                TrailerObject trailerObect = trailerList.get(seriesMainListItemView.indexOfChild(v));
+                                TrailerObject trailerObect = trailerList.get(trailerListItemView.indexOfChild(v));
                                 trailersURL = "http://api.themoviedb.org/3/movie/" + trailerObect.trailerID + "/videos?api_key=" + MainActivity.KEY;
                                 Log.d(TAG, "trailerObect.trailerID -------------------------------> " + trailerObect.trailerID);
                                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + trailerObect.trailerKey)));
 
                             }
                         });
-                        seriesMainListItemView.addView(inflatedView);
+                        trailerListItemView.addView(inflatedView);
 
                         // adding a movie to movie list
                         trailerList.add(trailer);
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Log.e("ServiceHandler", "Couldn't get any data from the url");
+            }
+        }
+    }
+
+    /**
+     * Async task class to get json by making HTTP call
+     */
+    private class GetReviews extends AsyncTask<Void, Void, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            // Showing progress dialog
+            if (pDialog != null) {
+                pDialog.setMessage("Please wait getting retReviews...");
+                if(!pDialog.isShowing())
+                    pDialog.show();
+            }
+        }
+
+        @Override
+        protected String doInBackground(Void... arg0) {
+            // Creating service handler class instance
+            ServiceHandler sh = new ServiceHandler();
+
+            // Making a request to url and getting response
+            String jsonStr = sh.makeServiceCall(reviewsURL);
+
+            Log.d("Response: ", " reviews >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + jsonStr);
+
+            if (pDialog != null) {
+                pDialog.dismiss();
+            }
+
+            return jsonStr;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            Log.d(TAG, "onPostExecute >>> " );
+            super.onPostExecute(result);
+            // Dismiss the progress dialog
+            if (pDialog != null) {
+                pDialog.dismiss();
+            }
+            /**
+             * Updating parsed JSON data into ListView
+             * */
+
+            if (result != null) {
+                try {
+                    JSONObject jsonObj = new JSONObject(result);
+
+                    Log.d(TAG, "jsonObj reviews--------------------- >"+jsonObj);
+
+                    // Getting JSON Array node
+                    JSONArray reviews = jsonObj.getJSONArray(TAG_RESULTS);
+                    if(reviewList!=null)
+                        reviewList.clear();
+                    reviewList = new ArrayList<String>();
+                    if(reviewListItemView!=null)
+                        reviewListItemView.removeAllViews();
+                    for (int i = 0; i < reviews.length(); i++) {
+                        JSONObject c = reviews.getJSONObject(i);
+
+                        String content = c.getString("content");
+                        String reviewID = c.getString("id");
+                        String author = c.getString("author");
+                        String url = c.getString("url");
+
+                        LayoutInflater mInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+                        View inflatedView = mInflater.inflate(R.layout.review_item_layout, null);
+                        TextView label = (TextView) inflatedView.findViewById(R.id.author);
+                        label.setText(author+":");
+
+                        TextView reviewContent = (TextView) inflatedView.findViewById(R.id.review);
+                        reviewContent.setText(content);
+
+                        if(reviewListItemView != null)
+                            reviewListItemView.addView(inflatedView);
                     }
 
                 } catch (JSONException e) {
